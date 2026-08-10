@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: user-account-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/xodium_users_account_db
+    username: tunde
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+server:
+  port: 8081
+
+# Eureka Discovery Config
+eureka:
+  client:
+#    server-url:
+#      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+#Health monitoring, and actuator config
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
