@@ -8,14 +8,26 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+#Kafka config
+  kafka:
+    bootstrap-servers: localhost:9092
+#As producer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring:
+          json:
+            add:
+              type: true
 server:
   port: 8081
 
 # Eureka Discovery Config
 eureka:
   client:
-#    server-url:
-#      defaultZone: http://localhost:8761/eureka/
+    server-url:
+      defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
 
@@ -25,4 +37,8 @@ management:
     web:
       exposure:
         include: "*"
+
+
+
+
 
