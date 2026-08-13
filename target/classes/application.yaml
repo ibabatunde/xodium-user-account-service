@@ -39,6 +39,9 @@ management:
         include: "*"
 
 
-
+#JWT Config
+jwt:
+  secret: kPhBE_zMjcI6UTLlpY9zsVgMkpYlb2pJIyglWQo73Md_kPhBE_zMjcI6UTLlpY9zsVgMkpYlb2pJIyglWQo73Md
+  expiration: 86400000
 
 
