@@ -1,10 +1,16 @@
 package com.xodium.useraccountservice.service.impl;
 
 import com.xodium.useraccountservice.dto.*;
+import com.xodium.useraccountservice.entity.Account;
 import com.xodium.useraccountservice.entity.Role;
 import com.xodium.useraccountservice.entity.User;
+import com.xodium.useraccountservice.enums.AccountStatus;
+import com.xodium.useraccountservice.enums.AccountType;
+import com.xodium.useraccountservice.enums.Currency;
 import com.xodium.useraccountservice.exceptions.BadRequestException;
 import com.xodium.useraccountservice.exceptions.NotFoundException;
+import com.xodium.useraccountservice.kafka.dto.UserRegistrationEvent;
+import com.xodium.useraccountservice.kafka.service.AccountEventPublisher;
 import com.xodium.useraccountservice.repository.AccountRepository;
 import com.xodium.useraccountservice.repository.RoleRepository;
 import com.xodium.useraccountservice.repository.UserRepository;
@@ -17,8 +23,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @Slf4j
@@ -30,6 +38,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final ModelMapper modelMapper;
+
+    private final AccountEventPublisher accountEventPublisher;
 
     @Override
     public ApiResponse<AuthResponse> registerUser(RegistrationRequest registrationRequest) {
@@ -52,7 +62,26 @@ public class AuthServiceImpl implements AuthService {
                 .enabled(true)
                 .build();
         User savedUser = userRepository.save(userToSave);
-        // TODO Generate a unique account number and send an email to the user, and then save the account number to the database
+
+        String accountNumber = generateAccountNumber();
+        Account accountToSaveToDb = Account.builder()
+                .accountNumber(accountNumber)
+                .balance(BigDecimal.ZERO)
+                .currency(Currency.NGN)
+                .accountType(AccountType.SAVINGS)
+                .accountStatus(AccountStatus.ACTIVE)
+                .user(savedUser)
+                .build();
+        accountRepository.save(accountToSaveToDb);
+
+
+        UserRegistrationEvent userRegistrationEvent = UserRegistrationEvent.builder()
+                .accountNumber(accountNumber)
+                .firstName(savedUser.getFirstName())
+                .lastName(savedUser.getLastName())
+                .email(savedUser.getEmail())
+                .build();
+        accountEventPublisher.publishUserRegistrationEvent(userRegistrationEvent);
 
         String token = jwtService.generateToken(savedUser.getEmail());
         UserDTO userDTO = modelMapper.map(savedUser, UserDTO.class);
@@ -60,6 +89,7 @@ public class AuthServiceImpl implements AuthService {
                 .token(token)
                 .user(userDTO)
                 .build();
+
         return new ApiResponse<>(HttpStatus.CREATED.value(), "User account created successfully", authResponse);
     }
 
@@ -80,5 +110,15 @@ public class AuthServiceImpl implements AuthService {
                 .user(userDTO)
                 .build();
         return new ApiResponse<>(HttpStatus.OK.value(), "Login successful", authResponse);
+    }
+
+    private String generateAccountNumber() {
+        String accountNumber;
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        do {
+            int randomPart = random.nextInt(100_000_000);
+            accountNumber = String.format("00%08d", randomPart);
+        } while (accountRepository.existsByAccountNumber(accountNumber));
+        return accountNumber;
     }
 }
